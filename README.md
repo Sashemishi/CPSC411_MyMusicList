@@ -2,8 +2,8 @@
 * Allen Chau --- allenchau@csu.fullerton.edu
 * Matthew Choi - sashemi@csu.fullerton.edu
 * Alex Jardon -- 
-* Tony Lin ----- 
-* Howard Wu ---- 
+* Tony Lin ----- 04tonylin@gmail.com
+* Howard Wu ---- howardwu1031@csu.fullerton.edu
 * Allison Yu --- 
 
 ## Description
