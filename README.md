@@ -4,7 +4,7 @@
 * Alex Jardon -- 
 * Tony Lin ----- 04tonylin@gmail.com
 * Howard Wu ---- howardwu1031@csu.fullerton.edu
-* Allison Yu --- 
+* Allison Yu --- ajyu0227@csu.fullerton.edu
 
 ## Description
 mambo mambo omatsuri mambo
