@@ -1,7 +1,7 @@
 # CPSC411_MyMusicList
 * Allen Chau --- allenchau@csu.fullerton.edu
 * Matthew Choi - sashemi@csu.fullerton.edu
-* Alex Jardon -- 
+* Alex Jardon -- jardonalex@csu.fullerton.edu
 * Tony Lin ----- 04tonylin@gmail.com
 * Howard Wu ---- howardwu1031@csu.fullerton.edu
 * Allison Yu --- ajyu0227@csu.fullerton.edu
