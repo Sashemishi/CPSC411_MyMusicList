@@ -1,45 +1,27 @@
-//
 //  ContentView.swift
 //  MyMusicList
 //
-//  Created by csuftitan on 4/23/26.
+//  CPSC 411-07 Mobile Device Application Programmig
+//  Professor Stephen T. May
 //
+//  Matthew Choi
+//  Allison Yu
+//  Allen Chau
+//  Alex Jardon
+//  Tony Liu
+//  Howard Wu
 
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                
-                Text("MyMusicList 🎵")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                Text("Track your favorite songs and albums")
-                    .foregroundColor(.gray)
-                
-                NavigationLink(destination: SearchView()) {
-                    Text("Search Music")
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                
-                NavigationLink(destination: MyListView()) {
-                    Text("My List")
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                
-            }
-            .padding()
+        VStack {
+            Image(systemName: "globe")
+                .imageScale(.large)
+                .foregroundStyle(.tint)
+            Text("Hello, world!")
         }
+        .padding()
     }
 }
 
