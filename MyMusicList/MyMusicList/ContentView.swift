@@ -1,9 +1,12 @@
-//
-//  ContentView.swift
+//  CPSC-411 App Development
 //  MyMusicList
 //
-//  Created by csuftitan on 4/23/26.
-//
+//  Matthew Choi
+//  Allison Yu
+//  Alex Jardon
+//  Tony Lin
+//  Howard Wu
+//  Allen Chau
 
 import SwiftUI
 
