@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 @main
 struct MyMusicListApp: App {
@@ -14,7 +15,7 @@ struct MyMusicListApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .envirmentObject(viewModel) 
+                .environmentObject(viewModel)
         }
     }
 }
