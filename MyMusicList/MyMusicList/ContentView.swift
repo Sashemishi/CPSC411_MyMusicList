@@ -28,53 +28,114 @@ enum AppColors {
     static let accent = Color(hex: 0xFF6B6B)
 }
 
-
 struct ContentView: View {
-    let MAX_TILE_WIDTH = 100.0
-    let MAX_TILE_HEIGHT = 50.0
-
+    @StateObject private var musicViewModel = MusicViewModel()
+    @State private var selectedTab: Tab = .home
+    
+    enum Tab {
+        case home, search, myList
+    }
+    
     var body: some View {
-        NavigationView {
+        VStack(spacing: 0) {
+            ZStack {
+                switch selectedTab {
+                case .home:
+                    HomeView()
+                case .search:
+                    SearchView()
+                case .myList:
+                    MyListView()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            // Persistent bottom bar
+            BottomBar(selectedTab: $selectedTab)
+        }
+        .ignoresSafeArea(.keyboard)
+        .environmentObject(musicViewModel)
+    }
+}
+
+struct BottomBar: View {
+    @Binding var selectedTab: ContentView.Tab
+    
+    var body: some View {
+        HStack {
+            BottomBarButton(
+                icon: "house.fill",
+                label: "Home",
+                isSelected: selectedTab == .home
+            ) {
+                selectedTab = .home
+            }
+            
+            BottomBarButton(
+                icon: "magnifyingglass",
+                label: "Search",
+                isSelected: selectedTab == .search
+            ) {
+                selectedTab = .search
+            }
+            
+            BottomBarButton(
+                icon: "music.note.list",
+                label: "Your List",
+                isSelected: selectedTab == .myList
+            ) {
+                selectedTab = .myList
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 8)
+        .background(AppColors.background)
+        
+    }
+}
+
+struct BottomBarButton: View {
+    let icon: String
+    let label: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size:30))
+                Text(label)
+                    .font(.caption)
+            }
+            .foregroundColor(isSelected ? .blue : .gray)
+            .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+// Some temporary homeview (can move to a separate file later)
+struct HomeView: View {
+    var body: some View {
+        NavigationStack {
             ZStack {
                 AppColors.background
                     .ignoresSafeArea()
-
-                VStack {
+                
+                VStack(alignment: .leading, spacing: 0) {
+                    // Custom title
+                    Text("MyMusicList")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                    
+                    // songs, details, etc go here
                     Spacer()
-
-                    HStack(spacing: 50) {
-                        Button(action: {}) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "house.fill")
-                                    .font(.system(size: 32))
-                                Text("Home")
-                            }
-                            .foregroundStyle(.white)
-                            .frame(width: 80)
-                        }
-
-                        NavigationLink(destination: SearchView()) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 32))
-                                Text("Search")
-                            }
-                            .foregroundStyle(.white)
-                            .frame(width: 80)
-                        }
-
-                        NavigationLink(destination: MyListView()) {
-                            VStack(spacing: 4) {
-                                Image(systemName: "music.note.list")
-                                    .font(.system(size: 32))
-                                Text("Your List")
-                            }
-                            .foregroundStyle(.white)
-                            .frame(width: 80)
-                        }
-                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .navigationBarHidden(true)  // hide system nav bar entirely
         }
     }
 }
