@@ -30,7 +30,9 @@ struct SearchView: View {
                     .foregroundColor(.gray)
 
                 Button("Add to MyList") {
-                    viewModel.savedSongs.append(music)
+                    viewModel.addSong(music)
+                    print("Added:", music.title)
+                        print("Total saved:", viewModel.savedSongs.count)
                 }
             }
         }
