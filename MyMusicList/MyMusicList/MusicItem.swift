@@ -6,3 +6,8 @@ struct MusicItem: Identifiable {
     let title: String
     let artist: String
 }
+
+struct Lyrics: Decodable {
+    let lyrics : String
+}
+

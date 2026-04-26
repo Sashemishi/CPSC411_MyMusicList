@@ -2,7 +2,8 @@ import SwiftUI
 
 struct MyListView: View {
     @EnvironmentObject var viewModel: MusicViewModel
-
+    @State private var expandedSongID: UUID?
+    
     var body: some View {
         List {
             if viewModel.savedSongs.isEmpty {
@@ -28,6 +29,17 @@ struct MyListView: View {
                         Text(music.artist)
                             .font(.subheadline)
                             .foregroundColor(.gray)
+                        Button("Tap to view Lyrics..") {
+                            if expandedSongID == music.id {
+                                expandedSongID = nil
+                            } else {
+                                expandedSongID = music.id
+                                viewModel.lyrics(id: music.id, artist: music.artist, title: music.title)
+                            }
+                        }
+                        if expandedSongID == music.id {
+                            Text(viewModel.lyricsText[music.id] ?? "Loading...")
+                        }
                     }
                     .padding(.vertical, 4)
                 }
