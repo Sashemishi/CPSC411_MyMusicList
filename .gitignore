@@ -2,6 +2,10 @@
 #
 # gitignore contributors: remember to update Global/Xcode.gitignore, Objective-C.gitignore & Swift.gitignore
 
+## File Folders
+Music/
+# So we don't accidently upload the files we're using to test the app, don't want to get smited by Big Music
+
 ## User settings
 xcuserdata/
 
