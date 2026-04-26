@@ -5,6 +5,7 @@ struct SearchView: View {
 
     @State private var musicList: [MusicItem] = []
     @State private var searchText = ""
+    @State private var isLoading = false
 
     var filteredMusic: [MusicItem] {
         if searchText.isEmpty {
@@ -20,7 +21,10 @@ struct SearchView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if filteredMusic.isEmpty {
+                if isLoading {
+                    ProgressView("Searching...")
+                        .padding()
+                } else if filteredMusic.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 44))
@@ -29,7 +33,7 @@ struct SearchView: View {
                         Text("No songs found")
                             .font(.headline)
 
-                        Text("Try another search or add music files later.")
+                        Text("Search for a song, artist, or album.")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                             .multilineTextAlignment(.center)
@@ -56,23 +60,47 @@ struct SearchView: View {
             }
             .navigationTitle("Search")
             .searchable(text: $searchText, prompt: "Search songs or artists")
+            .onSubmit(of: .search) {
+                searchMusic()
+            }
             .onAppear {
-                musicList = loadMusicFromBundle()
+                musicList = loadSampleMusic()
             }
         }
     }
 
-    func loadMusicFromBundle() -> [MusicItem] {
-        guard let urls = Bundle.main.urls(forResourcesWithExtension: "mp3", subdirectory: nil) else {
-            return []
+    func searchMusic() {
+        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedSearch.isEmpty else {
+            musicList = loadSampleMusic()
+            return
         }
 
-        return urls.map { url in
-            MusicItem(
-                title: url.deletingPathExtension().lastPathComponent,
-                artist: "Unknown Artist"
-            )
+        Task {
+            do {
+                isLoading = true
+
+                let service = MusicBrainzService()
+                let results = try await service.searchSongs(query: trimmedSearch)
+
+                musicList = results
+                isLoading = false
+            } catch {
+                print("Error fetching songs:", error)
+                isLoading = false
+            }
         }
+    }
+
+    func loadSampleMusic() -> [MusicItem] {
+        return [
+            MusicItem(title: "It's Going Down Now", artist: "Azumi Takahashi"),
+            MusicItem(title: "Inside", artist: "HOYO-MiX, Chevy, Robin"),
+            MusicItem(title: "One Way", artist: "Twenty One Pilots"),
+            MusicItem(title: "Blinding Lights", artist: "The Weeknd"),
+            MusicItem(title: "Levitating", artist: "Dua Lipa")
+        ]
     }
 }
 
