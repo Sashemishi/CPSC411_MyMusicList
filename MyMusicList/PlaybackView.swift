@@ -292,20 +292,15 @@ struct PlaybackView: View {
     private var artworkView: some View {
         Group {
             if let embeddedArtwork {
+                // ID3-embedded artwork takes highest priority
                 Image(uiImage: embeddedArtwork)
                     .resizable()
                     .scaledToFill()
-            } else if let coverURL = activeSong?.coverURL,
-               let url = URL(string: coverURL) {
-                AsyncImage(url: url) { image in
-                    image
-                        .resizable()
-                        .scaledToFill()
-                } placeholder: {
+            } else {
+                // Fall back to coverURL (file:// bundle images or remote https://)
+                BundleArtworkImage(coverURL: activeSong?.coverURL) {
                     artworkPlaceholder
                 }
-            } else {
-                artworkPlaceholder
             }
         }
         .frame(width: 260, height: 260)
