@@ -25,7 +25,7 @@ extension Color {
 // Define app's colors as constants
 enum AppColors {
     static let background = Color(hex: 0x1E2A38)
-    static let accent = Color(hex: 0xFF6B6B)
+    static let accent = Color(hex: 0x64A1F8)
 }
 
 struct ContentView: View {

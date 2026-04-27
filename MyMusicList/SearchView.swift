@@ -19,55 +19,75 @@ struct SearchView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Searching...")
-                        .padding()
-                } else if filteredMusic.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 44))
-                            .foregroundColor(.gray)
-
-                        Text("No songs found")
-                            .font(.headline)
-
-                        Text("Search for a song, artist, or album.")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
-                } else {
-                    List(filteredMusic) { music in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(music.title)
+        ZStack {
+            AppColors.background
+                .ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                // Custom title
+                Text("Search")
+                    .font(.system(size:30, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Group {
+                    if isLoading {
+                        ProgressView("Searching...")
+                            .padding()
+                    } else if filteredMusic.isEmpty {
+                        VStack(spacing: 5) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 44))
+                                .foregroundColor(.white)
+                            
+                            Text("No songs found")
                                 .font(.headline)
-
-                            Text(music.artist)
+                                .foregroundColor(.white)
+                            
+                            Text("Search for a song, artist, or album.")
                                 .font(.subheadline)
-                                .foregroundColor(.gray)
-
-                            Button("Add to MyList") {
-                                viewModel.addSong(music)
-                            }
-                            .buttonStyle(.borderedProminent)
+                                .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
                         }
-                        .padding(.vertical, 6)
+                        .padding()
+                        
+                    } else {
+                        List(filteredMusic) { music in
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(music.title)
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Text(music.artist)
+                                    .font(.subheadline)
+                                    .foregroundColor(.white)
+                                
+                                Button("Add to MyList") {
+                                    viewModel.addSong(music)
+                                        
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(AppColors.accent)
+                            }
+                            .padding(.vertical, 6)
+                            .listRowBackground(Color.clear)
+                        }
+                        .scrollContentBackground(.hidden)
                     }
                 }
-            }
-            .navigationTitle("Search")
-            .searchable(text: $searchText, prompt: "Search songs or artists")
-            .onSubmit(of: .search) {
-                searchMusic()
-            }
-            .onAppear {
-                musicList = loadSampleMusic()
+                .background(AppColors.background)
+                .searchable(text: $searchText, prompt: "Search songs or artists")
+                .onSubmit(of: .search) {
+                    searchMusic()
+                }
+                .onAppear {
+                    musicList = loadSampleMusic()
+                }
             }
         }
-    }
+        .navigationBarHidden(true)
+        }
 
     func searchMusic() {
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
