@@ -25,58 +25,70 @@ struct SearchView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Custom title
                 Text("Search")
-                    .font(.system(size:30, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundColor(AppColors.primaryText)
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                
-                Group {
+
+                List {
                     if isLoading {
-                        ProgressView("Searching...")
-                            .padding()
+                        VStack(spacing: 10) {
+                            ProgressView()
+                            Text("Searching...")
+                                .font(.subheadline)
+                                .foregroundColor(AppColors.secondaryText)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                        .listRowBackground(AppColors.tileBackground)
                     } else if filteredMusic.isEmpty {
-                        VStack(spacing: 5) {
+                        VStack(spacing: 10) {
                             Image(systemName: "magnifyingglass")
-                                .font(.system(size: 44))
-                                .foregroundColor(.white)
-                            
+                                .font(.largeTitle)
+                                .foregroundColor(AppColors.primaryText)
+
                             Text("No songs found")
                                 .font(.headline)
-                                .foregroundColor(.white)
-                            
+                                .foregroundColor(AppColors.primaryText)
+                                .bold()
+
                             Text("Search for a song, artist, or album.")
                                 .font(.subheadline)
-                                .foregroundColor(.white)
+                                .foregroundColor(AppColors.secondaryText)
                                 .multilineTextAlignment(.center)
                         }
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
-                        
+                        .listRowBackground(AppColors.tileBackground)
                     } else {
-                        List(filteredMusic) { music in
-                            VStack(alignment: .leading, spacing: 5) {
+                        ForEach(filteredMusic) { music in
+                            VStack(alignment: .leading, spacing: 6) {
                                 Text(music.title)
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                
+                                    .font(.system(size: 20))
+                                    .foregroundColor(AppColors.primaryText)
+
                                 Text(music.artist)
                                     .font(.subheadline)
-                                    .foregroundColor(.white)
-                                
-                                Button("Add to MyList") {
-                                    viewModel.addSong(music)
-                                        
+                                    .foregroundColor(AppColors.secondaryText)
+
+                                Menu {
+                                    ForEach(viewModel.playlists) { playlist in
+                                        Button(playlist.name) {
+                                            viewModel.addSong(music, toPlaylistID: playlist.id)
+                                        }
+                                    }
+                                } label: {
+                                    Text("Add to MyList")
+                                        .foregroundColor(AppColors.accent)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .tint(AppColors.accent)
                             }
-                            .padding(.vertical, 6)
-                            .listRowBackground(Color.clear)
+                            .padding(.vertical, 4)
+                            .listRowBackground(AppColors.tileBackground)
                         }
-                        .scrollContentBackground(.hidden)
                     }
                 }
-                .background(AppColors.background)
+                .scrollContentBackground(.hidden)
                 .searchable(text: $searchText, prompt: "Search songs or artists")
                 .onSubmit(of: .search) {
                     searchMusic()
@@ -87,7 +99,7 @@ struct SearchView: View {
             }
         }
         .navigationBarHidden(true)
-        }
+    }
 
     func searchMusic() {
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)

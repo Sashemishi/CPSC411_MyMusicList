@@ -25,7 +25,12 @@ extension Color {
 // Define app's colors as constants
 enum AppColors {
     static let background = Color(hex: 0x1E2A38)
-    static let accent = Color(hex: 0x64A1F8)
+    static let tileBackground = Color(hex: 0x2A3A4D)
+    static let tileBorder = Color(hex:0x3A4D63)
+    static let accent = Color(hex: 0x4FC3F7)
+    static let primaryText = Color(hex: 0xF5F7FA)
+    static let secondaryText = Color(hex: 0xC8D4E0)
+    static let mutedText = Color(hex: 0x8FA3B8)
 }
 
 struct ContentView: View {
@@ -81,7 +86,7 @@ struct BottomBar: View {
             
             BottomBarButton(
                 icon: "music.note.list",
-                label: "Your List",
+                label: "MyLists",
                 isSelected: selectedTab == .myList
             ) {
                 selectedTab = .myList
@@ -107,8 +112,9 @@ struct BottomBarButton: View {
                     .font(.system(size:30))
                 Text(label)
                     .font(.caption)
+                    .foregroundColor(AppColors.mutedText)
             }
-            .foregroundColor(isSelected ? .blue : .gray)
+            .foregroundColor(isSelected ? AppColors.accent : AppColors.mutedText)
             .frame(maxWidth: .infinity)
         }
     }
@@ -126,7 +132,7 @@ struct HomeView: View {
                     // Custom title
                     Text("MyMusicList")
                         .font(.system(size: 30, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppColors.primaryText)
                         .padding(.horizontal, 20)
                         .padding(.top, 10)
                     

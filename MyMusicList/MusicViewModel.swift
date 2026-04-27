@@ -11,9 +11,64 @@ class MusicViewModel: ObservableObject {
 
     @Published var lyricsText: [UUID: String] = [:]
 
+    @Published var playlists: [Playlist] = [] {
+        didSet {
+            savePlaylists()
+        }
+    }
+
+    private let playlistsKey = "savedPlaylists"
+
     init() {
         loadSongs()
+        loadPlaylists()
     }
+
+    // MARK: - Playlist Management
+
+    func createPlaylist(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        playlists.append(Playlist(name: trimmed))
+    }
+
+    func deletePlaylist(at offsets: IndexSet) {
+        // Prevent deleting the last remaining playlist
+        let remaining = playlists.count - offsets.count
+        guard remaining >= 1 else { return }
+        playlists.remove(atOffsets: offsets)
+    }
+
+    func addSong(_ music: MusicItem, toPlaylistID playlistID: UUID) {
+        guard let index = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+        if !playlists[index].songs.contains(where: { $0.title == music.title && $0.artist == music.artist }) {
+            playlists[index].songs.append(music)
+        }
+    }
+
+    func deleteSong(from playlistID: UUID, at offsets: IndexSet) {
+        guard let index = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+        playlists[index].songs.remove(atOffsets: offsets)
+    }
+
+    private func savePlaylists() {
+        if let encoded = try? JSONEncoder().encode(playlists) {
+            UserDefaults.standard.set(encoded, forKey: playlistsKey)
+        }
+    }
+
+    private func loadPlaylists() {
+        if let data = UserDefaults.standard.data(forKey: playlistsKey),
+           let decoded = try? JSONDecoder().decode([Playlist].self, from: data),
+           !decoded.isEmpty {
+            playlists = decoded
+        } else {
+            // Default playlist on first launch
+            playlists = [Playlist(name: "MyList")]
+        }
+    }
+
+    // MARK: - Existing Song Management
 
     func addSong(_ music: MusicItem) {
         if !savedSongs.contains(where: { $0.title == music.title && $0.artist == music.artist }) {

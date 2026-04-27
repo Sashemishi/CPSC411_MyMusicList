@@ -30,3 +30,14 @@ struct Lyrics: Decodable {
     let lyrics: String
 }
 
+struct Playlist: Identifiable, Codable {
+    let id: UUID
+    var name: String
+    var songs: [MusicItem]
+
+    init(id: UUID = UUID(), name: String, songs: [MusicItem] = []) {
+        self.id = id
+        self.name = name
+        self.songs = songs
+    }
+}
