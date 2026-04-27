@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 func loadMusicFromBundle() -> [MusicItem] {
     guard let urls = Bundle.main.urls(forResourcesWithExtension: "mp3", subdirectory: nil) else {
@@ -7,9 +8,18 @@ func loadMusicFromBundle() -> [MusicItem] {
 
     return urls.map { url in
         let filename = url.deletingPathExtension().lastPathComponent
+        let asset = AVURLAsset(url: url)
+        let metadata = asset.commonMetadata
+        
+        let titleItems = AVMetadataItem.metadataItems(from: metadata,
+                                                      filteredByIdentifier: .commonIdentifierTitle)
+        let artistItems = AVMetadataItem.metadataItems(from: metadata,
+                                                      filteredByIdentifier: .commonIdentifierArtist)
+        let title = titleItems.first?.stringValue ?? filename
+        let artist = artistItems.first?.stringValue ?? "Unknown Artist"
         return MusicItem(
-            title: filename,
-            artist: "Unknown Artist"
+            title: title,
+            artist: artist,
         )
     }
 }
