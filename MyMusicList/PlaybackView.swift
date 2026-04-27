@@ -146,10 +146,14 @@ struct PlaybackView: View {
     @State private var currentIndex = 0
     @State private var isPlaying = false
     @State private var isRepeatEnabled = false
+    @State private var isShuffleEnabled = false
     @State private var isDraggingSlider = false
     @State private var pendingSeekTime: Double = 0
+    @State private var displayTime: Double = 0
     @State private var showAddToPlaylistSheet = false
     @State private var embeddedArtwork: UIImage?
+    @State private var unshuffledQueue: [MusicItem] = []
+    @State private var hadCustomQueueBeforeShuffle = false
     @StateObject private var playbackController = PlaybackController.shared
 
     private let playbackTimer = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
@@ -185,7 +189,7 @@ struct PlaybackView: View {
     private var sliderValue: Binding<Double> {
         Binding(
             get: {
-                isDraggingSlider ? pendingSeekTime : playbackController.currentTime
+                isDraggingSlider ? pendingSeekTime : displayTime
             },
             set: { newValue in
                 pendingSeekTime = newValue
@@ -227,6 +231,9 @@ struct PlaybackView: View {
         }
         .onReceive(playbackTimer) { _ in
             playbackController.refreshProgress()
+            if !isDraggingSlider {
+                displayTime = playbackController.currentTime
+            }
         }
         .sheet(isPresented: $showAddToPlaylistSheet) {
             PlaybackAddToPlaylistSheet(
@@ -362,11 +369,14 @@ struct PlaybackView: View {
                 onEditingChanged: { isEditing in
                     if isEditing {
                         isDraggingSlider = true
-                        pendingSeekTime = playbackController.currentTime
+                        pendingSeekTime = displayTime
                     } else {
                         let clampedTime = min(max(pendingSeekTime, 0), playbackDuration)
+                        displayTime = clampedTime
                         playbackController.seek(to: clampedTime)
-                        pendingSeekTime = playbackController.currentTime
+                        playbackController.refreshProgress()
+                        pendingSeekTime = clampedTime
+                        displayTime = clampedTime
                         isDraggingSlider = false
                     }
                 }
@@ -375,7 +385,7 @@ struct PlaybackView: View {
             .disabled(activeSong == nil || playbackController.duration == 0)
 
             HStack {
-                Text(formattedTime(isDraggingSlider ? pendingSeekTime : playbackController.currentTime))
+                Text(formattedTime(isDraggingSlider ? pendingSeekTime : displayTime))
                 Spacer()
                 Text(formattedTime(playbackController.duration))
             }
@@ -421,11 +431,11 @@ struct PlaybackView: View {
                 .disabled(!hasNextSong)
 
                 Button {
-                    shuffleToRandomSong()
+                    toggleShuffle()
                 } label: {
                     Image(systemName: "shuffle")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(isShuffleEnabled ? AppColors.accent : .white)
                 }
                 .disabled(playlist.count < 2)
             }
@@ -477,7 +487,11 @@ struct PlaybackView: View {
         if activeSong == nil {
             isPlaying = false
             pendingSeekTime = 0
+            displayTime = 0
             embeddedArtwork = nil
+            isShuffleEnabled = false
+            unshuffledQueue = []
+            hadCustomQueueBeforeShuffle = false
             playbackController.stop()
             return
         }
@@ -515,6 +529,7 @@ struct PlaybackView: View {
         if isRepeatEnabled {
             playbackController.seek(to: 0)
             pendingSeekTime = 0
+            displayTime = 0
             isDraggingSlider = false
             playbackController.play()
         } else if hasNextSong {
@@ -523,6 +538,7 @@ struct PlaybackView: View {
             isPlaying = false
             playbackController.seek(to: playbackController.duration)
             pendingSeekTime = playbackController.currentTime
+            displayTime = playbackController.currentTime
         }
     }
 
@@ -532,6 +548,7 @@ struct PlaybackView: View {
         if playbackController.currentTime > 3 {
             playbackController.seek(to: 0)
             pendingSeekTime = playbackController.currentTime
+            displayTime = playbackController.currentTime
             return
         }
 
@@ -540,6 +557,7 @@ struct PlaybackView: View {
         } else {
             playbackController.seek(to: 0)
             pendingSeekTime = playbackController.currentTime
+            displayTime = playbackController.currentTime
         }
     }
 
@@ -548,19 +566,35 @@ struct PlaybackView: View {
         selectSong(at: currentIndex + 1)
     }
 
-    private func shuffleToRandomSong() {
+    private func toggleShuffle() {
         guard playlist.count > 1,
-              playlist.indices.contains(currentIndex) else { return }
+              let activeSong else { return }
 
-        let currentSong = playlist[currentIndex]
-        var remainingSongs = playlist.enumerated().compactMap { index, song in
-            index == currentIndex ? nil : song
+        if isShuffleEnabled {
+            let restoredQueue = restoreOriginalQueue(keeping: activeSong)
+            viewModel.currentQueue = hadCustomQueueBeforeShuffle ? restoredQueue : []
+            if let restoredIndex = restoredQueue.firstIndex(where: { $0.id == activeSong.id }) {
+                currentIndex = restoredIndex
+            }
+            isShuffleEnabled = false
+            unshuffledQueue = []
+            hadCustomQueueBeforeShuffle = false
+            return
         }
+
+        hadCustomQueueBeforeShuffle = !viewModel.currentQueue.isEmpty
+        unshuffledQueue = playlist
+
+        var remainingSongs = playlist.filter { $0.id != activeSong.id }
         remainingSongs.shuffle()
 
-        var shuffledPlaylist = remainingSongs
-        shuffledPlaylist.insert(currentSong, at: currentIndex)
-        viewModel.currentQueue = shuffledPlaylist
+        let insertionIndex = min(currentIndex, remainingSongs.count)
+        var shuffledQueue = remainingSongs
+        shuffledQueue.insert(activeSong, at: insertionIndex)
+
+        viewModel.currentQueue = shuffledQueue
+        currentIndex = insertionIndex
+        isShuffleEnabled = true
     }
 
     private func selectSong(at index: Int) {
@@ -575,6 +609,7 @@ struct PlaybackView: View {
 
         playbackController.prepare(song: activeSong)
         pendingSeekTime = playbackController.currentTime
+        displayTime = playbackController.currentTime
         isDraggingSlider = false
         isPlaying = autoplay
 
@@ -583,6 +618,15 @@ struct PlaybackView: View {
         } else {
             playbackController.pause()
         }
+    }
+
+    private func restoreOriginalQueue(keeping currentSong: MusicItem) -> [MusicItem] {
+        let sourceQueue = unshuffledQueue.isEmpty ? playlist : unshuffledQueue
+        guard sourceQueue.contains(where: { $0.id == currentSong.id }) else {
+            return sourceQueue
+        }
+
+        return sourceQueue
     }
 
     private func add(_ song: MusicItem, to playlist: Playlist) {
