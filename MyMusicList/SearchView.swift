@@ -1,5 +1,6 @@
 import SwiftUI
 
+// Looks for {title}.jpg or {title}.png in the bundle alongside each .mp3
 func loadMusicFromBundle() -> [MusicItem] {
     guard let urls = Bundle.main.urls(forResourcesWithExtension: "mp3", subdirectory: nil) else {
         return []
@@ -7,9 +8,22 @@ func loadMusicFromBundle() -> [MusicItem] {
 
     return urls.map { url in
         let filename = url.deletingPathExtension().lastPathComponent
+
+        // Match a cover image with the same base filename
+        let coverURL: String? = {
+            if let jpg = Bundle.main.url(forResource: filename, withExtension: "jpg") {
+                return jpg.absoluteString
+            }
+            if let png = Bundle.main.url(forResource: filename, withExtension: "png") {
+                return png.absoluteString
+            }
+            return nil
+        }()
+
         return MusicItem(
             title: filename,
-            artist: "Unknown Artist"
+            artist: "Unknown Artist",
+            coverURL: coverURL
         )
     }
 }
@@ -95,16 +109,9 @@ struct SearchView: View {
     }
 
     private func add(_ song: MusicItem, to playlist: Playlist) {
-        // Prefer a view model API if available
-        if let addMethod = (viewModel as AnyObject) as? (MusicItem, Playlist) -> Void {
-            // This branch is unlikely; we keep a direct path below.
-            addMethod(song, playlist)
-        } else {
-            // Fallback: mutate via viewModel by locating the playlist and appending
-            if let index = viewModel.playlists.firstIndex(where: { $0.id == playlist.id }) {
-                if !viewModel.playlists[index].songs.contains(where: { $0.id == song.id }) {
-                    viewModel.playlists[index].songs.append(song)
-                }
+        if let index = viewModel.playlists.firstIndex(where: { $0.id == playlist.id }) {
+            if !viewModel.playlists[index].songs.contains(where: { $0.id == song.id }) {
+                viewModel.playlists[index].songs.append(song)
             }
         }
     }
@@ -139,7 +146,6 @@ private struct AddToPlaylistSheet: View {
 
 #Preview {
     let viewModel = MusicViewModel()
-
     return NavigationStack {
         SearchView()
             .environmentObject(viewModel)

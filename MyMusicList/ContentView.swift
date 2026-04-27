@@ -34,6 +34,58 @@ enum AppColors {
     static let mutedText     = Color(hex: 0x8FA3B8)
 }
 
+// MARK: - Bundle Artwork Helper
+//
+// Loads cover art from a coverURL string, handling both:
+//   • file:// URLs  → bundle-local .jpg / .png files
+//   • https:// URLs → remote images via AsyncImage
+
+struct BundleArtworkImage<Placeholder: View>: View {
+    let coverURL: String?
+    let contentMode: ContentMode
+    @ViewBuilder let placeholder: () -> Placeholder
+
+    init(
+        coverURL: String?,
+        contentMode: ContentMode = .fill,
+        @ViewBuilder placeholder: @escaping () -> Placeholder
+    ) {
+        self.coverURL = coverURL
+        self.contentMode = contentMode
+        self.placeholder = placeholder
+    }
+
+    var body: some View {
+        if let coverURL,
+           let url = URL(string: coverURL) {
+            if url.isFileURL {
+                // Local bundle image — load synchronously via UIImage
+                if let uiImage = UIImage(contentsOfFile: url.path) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: contentMode)
+                } else {
+                    placeholder()
+                }
+            } else {
+                // Remote URL
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: contentMode)
+                    default:
+                        placeholder()
+                    }
+                }
+            }
+        } else {
+            placeholder()
+        }
+    }
+}
+
 // MARK: - ContentView
 
 struct ContentView: View {
@@ -266,11 +318,6 @@ struct PlaylistTile: View {
     let playlist: Playlist
     let size: CGFloat
 
-    private var coverURL: URL? {
-        guard let urlString = playlist.songs.first?.coverURL else { return nil }
-        return URL(string: urlString)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack {
@@ -281,28 +328,13 @@ struct PlaylistTile: View {
                             .stroke(AppColors.tileBorder, lineWidth: 1)
                     )
 
-                if let coverURL {
-                    AsyncImage(url: coverURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: size, height: size)
-                                .clipped()
-                        default:
-                            Image(systemName: "music.note.list")
-                                .font(.system(size: size * 0.4))
-                                .foregroundColor(AppColors.accent)
-                        }
-                    }
-                    .frame(width: size, height: size)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                } else {
+                BundleArtworkImage(coverURL: playlist.songs.first?.coverURL) {
                     Image(systemName: "music.note.list")
                         .font(.system(size: size * 0.4))
                         .foregroundColor(AppColors.accent)
                 }
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .frame(width: size, height: size)
 
@@ -344,11 +376,6 @@ struct RecentSongsList: View {
 struct RecentSongRow: View {
     let song: MusicItem
 
-    private var coverURL: URL? {
-        guard let urlString = song.coverURL else { return nil }
-        return URL(string: urlString)
-    }
-
     var body: some View {
         HStack(spacing: 12) {
             // Cover / placeholder
@@ -356,26 +383,12 @@ struct RecentSongRow: View {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(AppColors.background)
 
-                if let coverURL {
-                    AsyncImage(url: coverURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 50, height: 50)
-                                .clipped()
-                        default:
-                            Image(systemName: "music.note")
-                                .foregroundColor(AppColors.accent)
-                        }
-                    }
-                    .frame(width: 50, height: 50)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                } else {
+                BundleArtworkImage(coverURL: song.coverURL) {
                     Image(systemName: "music.note")
                         .foregroundColor(AppColors.accent)
                 }
+                .frame(width: 50, height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .frame(width: 50, height: 50)
 
