@@ -54,12 +54,21 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if let currentSong = musicViewModel.currentSong {
+                MiniPlayerView(song: currentSong)
+                    .environmentObject(musicViewModel)
+            }
             
             // Persistent bottom bar
             BottomBar(selectedTab: $selectedTab)
         }
         .ignoresSafeArea(.keyboard)
         .environmentObject(musicViewModel)
+        .fullScreenCover(isPresented: $musicViewModel.isPlayerPresented) {
+            PlaybackView(song: musicViewModel.currentSong)
+                .environmentObject(musicViewModel)
+        }
     }
 }
 
@@ -117,6 +126,65 @@ struct BottomBarButton: View {
             .foregroundColor(isSelected ? AppColors.accent : AppColors.mutedText)
             .frame(maxWidth: .infinity)
         }
+    }
+}
+
+struct MiniPlayerView: View {
+    @EnvironmentObject var viewModel: MusicViewModel
+    @StateObject private var playbackController = PlaybackController.shared
+
+    let song: MusicItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button {
+                viewModel.presentPlayback(for: song, queue: viewModel.currentQueue)
+            } label: {
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(AppColors.accent.opacity(0.35))
+                        .frame(width: 48, height: 48)
+                        .overlay {
+                            Image(systemName: "music.note")
+                                .foregroundColor(.white)
+                        }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(song.title)
+                            .font(.headline)
+                            .foregroundColor(AppColors.primaryText)
+                            .lineLimit(1)
+
+                        Text(playbackController.isPlaying ? "Playing" : "Paused")
+                            .font(.caption)
+                            .foregroundColor(AppColors.accent)
+
+                        Text(song.artist)
+                            .font(.subheadline)
+                            .foregroundColor(AppColors.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            Button {
+                if !playbackController.isPrepared(for: song) {
+                    playbackController.prepare(song: song)
+                }
+                playbackController.togglePlayback()
+            } label: {
+                Image(systemName: playbackController.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.system(size: 32))
+                    .foregroundColor(.white)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(AppColors.tileBackground)
     }
 }
 
