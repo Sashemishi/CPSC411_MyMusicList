@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 
 // Looks for {title}.jpg or {title}.png in the bundle alongside each .mp3
 func loadMusicFromBundle() -> [MusicItem] {
@@ -8,22 +9,18 @@ func loadMusicFromBundle() -> [MusicItem] {
 
     return urls.map { url in
         let filename = url.deletingPathExtension().lastPathComponent
-
-        // Match a cover image with the same base filename
-        let coverURL: String? = {
-            if let jpg = Bundle.main.url(forResource: filename, withExtension: "jpg") {
-                return jpg.absoluteString
-            }
-            if let png = Bundle.main.url(forResource: filename, withExtension: "png") {
-                return png.absoluteString
-            }
-            return nil
-        }()
-
+        let asset = AVURLAsset(url: url)
+        let metadata = asset.commonMetadata
+        
+        let titleItems = AVMetadataItem.metadataItems(from: metadata,
+                                                      filteredByIdentifier: .commonIdentifierTitle)
+        let artistItems = AVMetadataItem.metadataItems(from: metadata,
+                                                      filteredByIdentifier: .commonIdentifierArtist)
+        let title = titleItems.first?.stringValue ?? filename
+        let artist = artistItems.first?.stringValue ?? "Unknown Artist"
         return MusicItem(
-            title: filename,
-            artist: "Unknown Artist",
-            coverURL: coverURL
+            title: title,
+            artist: artist,
         )
     }
 }
