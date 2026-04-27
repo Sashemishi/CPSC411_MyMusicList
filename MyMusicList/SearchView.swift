@@ -1,6 +1,7 @@
 import SwiftUI
 import AVFoundation
 
+// Looks for {title}.jpg or {title}.png in the bundle alongside each .mp3
 func loadMusicFromBundle() -> [MusicItem] {
     guard let urls = Bundle.main.urls(forResourcesWithExtension: "mp3", subdirectory: nil) else {
         return []
@@ -32,36 +33,60 @@ struct SearchView: View {
     @State private var selectedSong: MusicItem?
 
     var body: some View {
-        List(musicList) { music in
-            VStack(alignment: .leading, spacing: 8) {
-                Text(music.title)
-                    .font(.headline)
+        ZStack {
+            AppColors.background
+                .ignoresSafeArea()
 
-                Text(music.artist)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+            List(musicList) { music in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(music.title)
+                                .font(.headline)
+                                .foregroundColor(AppColors.primaryText)
 
-                HStack(spacing: 12) {
-                    Menu("Add to Playlist") {
-                        if viewModel.playlists.isEmpty {
-                            Button("No playlists yet") {}
-                                .disabled(true)
-                        } else {
-                            ForEach(viewModel.playlists) { playlist in
-                                Button(playlist.name) {
-                                    add(music, to: playlist)
+                            Text(music.artist)
+                                .font(.subheadline)
+                                .foregroundColor(AppColors.secondaryText)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            viewModel.presentPlayback(for: music, queue: musicList)
+                        } label: {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(AppColors.accent)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    HStack(spacing: 12) {
+                        Menu("Add to Playlist") {
+                            if viewModel.playlists.isEmpty {
+                                Button("No playlists yet") {}
+                                    .disabled(true)
+                            } else {
+                                ForEach(viewModel.playlists) { playlist in
+                                    Button(playlist.name) {
+                                        add(music, to: playlist)
+                                    }
                                 }
                             }
+                            Divider()
+                            Button("Choose…") {
+                                selectedSong = music
+                                showAddToPlaylistSheet = true
+                            }
                         }
-                        Divider()
-                        Button("Choose…") {
-                            selectedSong = music
-                            showAddToPlaylistSheet = true
-                        }
+                        .tint(AppColors.accent)
+                        .buttonStyle(.borderless)
                     }
-                    .buttonStyle(.borderless)
                 }
+                .listRowBackground(AppColors.tileBackground)
             }
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Search")
         .onAppear {
@@ -81,16 +106,9 @@ struct SearchView: View {
     }
 
     private func add(_ song: MusicItem, to playlist: Playlist) {
-        // Prefer a view model API if available
-        if let addMethod = (viewModel as AnyObject) as? (MusicItem, Playlist) -> Void {
-            // This branch is unlikely; we keep a direct path below.
-            addMethod(song, playlist)
-        } else {
-            // Fallback: mutate via viewModel by locating the playlist and appending
-            if let index = viewModel.playlists.firstIndex(where: { $0.id == playlist.id }) {
-                if !viewModel.playlists[index].songs.contains(where: { $0.id == song.id }) {
-                    viewModel.playlists[index].songs.append(song)
-                }
+        if let index = viewModel.playlists.firstIndex(where: { $0.id == playlist.id }) {
+            if !viewModel.playlists[index].songs.contains(where: { $0.id == song.id }) {
+                viewModel.playlists[index].songs.append(song)
             }
         }
     }
@@ -125,7 +143,6 @@ private struct AddToPlaylistSheet: View {
 
 #Preview {
     let viewModel = MusicViewModel()
-
     return NavigationStack {
         SearchView()
             .environmentObject(viewModel)

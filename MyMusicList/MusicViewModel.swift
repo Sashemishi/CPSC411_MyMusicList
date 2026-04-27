@@ -6,6 +6,7 @@ class MusicViewModel: ObservableObject {
     @Published var savedSongs: [MusicItem] = [] {
         didSet {
             saveSongs()
+            syncCurrentSongWithAvailableSongs()
         }
     }
 
@@ -17,11 +18,52 @@ class MusicViewModel: ObservableObject {
         }
     }
 
+    @Published var currentSong: MusicItem? {
+        didSet {
+            if let song = currentSong {
+                recordRecentlyPlayed(song)
+            }
+        }
+    }
+    @Published var currentQueue: [MusicItem] = []
+    @Published var isPlayerPresented = false
+
+    /// Songs played most-recently first, deduplicated, capped at 20.
+    @Published var recentlyPlayed: [MusicItem] = []
+
     private let playlistsKey = "savedPlaylists"
+    private let recentlyPlayedKey = "recentlyPlayed"
 
     init() {
         loadSongs()
         loadPlaylists()
+        loadRecentlyPlayed()
+    }
+
+    // MARK: - Recently Played
+
+    private func recordRecentlyPlayed(_ song: MusicItem) {
+        // Remove any existing entry for this song, then prepend
+        recentlyPlayed.removeAll { $0.id == song.id }
+        recentlyPlayed.insert(song, at: 0)
+        // Cap at 20 entries
+        if recentlyPlayed.count > 20 {
+            recentlyPlayed = Array(recentlyPlayed.prefix(20))
+        }
+        saveRecentlyPlayed()
+    }
+
+    private func saveRecentlyPlayed() {
+        if let encoded = try? JSONEncoder().encode(recentlyPlayed) {
+            UserDefaults.standard.set(encoded, forKey: recentlyPlayedKey)
+        }
+    }
+
+    private func loadRecentlyPlayed() {
+        if let data = UserDefaults.standard.data(forKey: recentlyPlayedKey),
+           let decoded = try? JSONDecoder().decode([MusicItem].self, from: data) {
+            recentlyPlayed = decoded
+        }
     }
 
     // MARK: - Playlist Management
@@ -33,7 +75,6 @@ class MusicViewModel: ObservableObject {
     }
 
     func deletePlaylist(at offsets: IndexSet) {
-        // Prevent deleting the last remaining playlist
         let remaining = playlists.count - offsets.count
         guard remaining >= 1 else { return }
         playlists.remove(atOffsets: offsets)
@@ -63,12 +104,11 @@ class MusicViewModel: ObservableObject {
            !decoded.isEmpty {
             playlists = decoded
         } else {
-            // Default playlist on first launch
             playlists = [Playlist(name: "MyList")]
         }
     }
 
-    // MARK: - Existing Song Management
+    // MARK: - Song Management
 
     func addSong(_ music: MusicItem) {
         if !savedSongs.contains(where: { $0.title == music.title && $0.artist == music.artist }) {
@@ -106,26 +146,57 @@ class MusicViewModel: ObservableObject {
             return
         }
 
-        let request = URLRequest(url: url)
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: URLRequest(url: url)) { data, _, error in
             if let error = error {
-                DispatchQueue.main.async {
-                    self.lyricsText[id] = "Error: \(error.localizedDescription)"
-                }
+                DispatchQueue.main.async { self.lyricsText[id] = "Error: \(error.localizedDescription)" }
                 return
             }
-
             if let data = data,
                let decodedData = try? JSONDecoder().decode(Lyrics.self, from: data) {
-                DispatchQueue.main.async {
-                    self.lyricsText[id] = decodedData.lyrics
-                }
+                DispatchQueue.main.async { self.lyricsText[id] = decodedData.lyrics }
             } else {
-                DispatchQueue.main.async {
-                    self.lyricsText[id] = "Lyrics not found."
-                }
+                DispatchQueue.main.async { self.lyricsText[id] = "Lyrics not found." }
             }
         }.resume()
+    }
+
+    // MARK: - Playback State
+
+    func presentPlayback(for song: MusicItem, queue: [MusicItem]? = nil) {
+        if let queue, !queue.isEmpty {
+            currentQueue = queue
+        } else if savedSongs.contains(where: { $0.id == song.id }) {
+            currentQueue = savedSongs
+        } else {
+            currentQueue = [song]
+        }
+
+        currentSong = song
+        isPlayerPresented = true
+    }
+
+    func dismissPlayback() {
+        isPlayerPresented = false
+    }
+
+    func selectPlaybackSong(_ song: MusicItem) {
+        currentSong = song
+    }
+
+    private func syncCurrentSongWithAvailableSongs() {
+        guard let currentSong else { return }
+
+        if let savedMatch = savedSongs.first(where: { $0.id == currentSong.id }) {
+            self.currentSong = savedMatch
+        } else if currentQueue.contains(where: { $0.id == currentSong.id }) {
+            return
+        } else {
+            self.currentSong = nil
+            isPlayerPresented = false
+        }
+
+        currentQueue.removeAll { queuedSong in
+            !savedSongs.contains(where: { $0.id == queuedSong.id })
+        }
     }
 }
