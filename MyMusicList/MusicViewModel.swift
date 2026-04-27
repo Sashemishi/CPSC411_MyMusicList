@@ -6,6 +6,7 @@ class MusicViewModel: ObservableObject {
     @Published var savedSongs: [MusicItem] = [] {
         didSet {
             saveSongs()
+            syncCurrentSongWithAvailableSongs()
         }
     }
 
@@ -16,6 +17,10 @@ class MusicViewModel: ObservableObject {
             savePlaylists()
         }
     }
+
+    @Published var currentSong: MusicItem?
+    @Published var currentQueue: [MusicItem] = []
+    @Published var isPlayerPresented = false
 
     private let playlistsKey = "savedPlaylists"
 
@@ -127,5 +132,45 @@ class MusicViewModel: ObservableObject {
                 }
             }
         }.resume()
+    }
+
+    // MARK: - Playback State
+
+    func presentPlayback(for song: MusicItem, queue: [MusicItem]? = nil) {
+        if let queue, !queue.isEmpty {
+            currentQueue = queue
+        } else if savedSongs.contains(where: { $0.id == song.id }) {
+            currentQueue = savedSongs
+        } else {
+            currentQueue = [song]
+        }
+
+        currentSong = song
+        isPlayerPresented = true
+    }
+
+    func dismissPlayback() {
+        isPlayerPresented = false
+    }
+
+    func selectPlaybackSong(_ song: MusicItem) {
+        currentSong = song
+    }
+
+    private func syncCurrentSongWithAvailableSongs() {
+        guard let currentSong else { return }
+
+        if let savedMatch = savedSongs.first(where: { $0.id == currentSong.id }) {
+            self.currentSong = savedMatch
+        } else if currentQueue.contains(where: { $0.id == currentSong.id }) {
+            return
+        } else {
+            self.currentSong = nil
+            isPlayerPresented = false
+        }
+
+        currentQueue.removeAll { queuedSong in
+            !savedSongs.contains(where: { $0.id == queuedSong.id })
+        }
     }
 }

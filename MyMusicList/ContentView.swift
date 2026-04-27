@@ -54,12 +54,21 @@ struct ContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if let currentSong = musicViewModel.currentSong {
+                MiniPlayerView(song: currentSong)
+                    .environmentObject(musicViewModel)
+            }
             
             // Persistent bottom bar
             BottomBar(selectedTab: $selectedTab)
         }
         .ignoresSafeArea(.keyboard)
         .environmentObject(musicViewModel)
+        .fullScreenCover(isPresented: $musicViewModel.isPlayerPresented) {
+            PlaybackView(song: musicViewModel.currentSong)
+                .environmentObject(musicViewModel)
+        }
     }
 }
 
@@ -117,6 +126,50 @@ struct BottomBarButton: View {
             .foregroundColor(isSelected ? AppColors.accent : AppColors.mutedText)
             .frame(maxWidth: .infinity)
         }
+    }
+}
+
+struct MiniPlayerView: View {
+    @EnvironmentObject var viewModel: MusicViewModel
+
+    let song: MusicItem
+
+    var body: some View {
+        Button {
+            viewModel.presentPlayback(for: song, queue: viewModel.currentQueue)
+        } label: {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AppColors.accent.opacity(0.35))
+                    .frame(width: 48, height: 48)
+                    .overlay {
+                        Image(systemName: "music.note")
+                            .foregroundColor(.white)
+                    }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(song.title)
+                        .font(.headline)
+                        .foregroundColor(AppColors.primaryText)
+                        .lineLimit(1)
+
+                    Text(song.artist)
+                        .font(.subheadline)
+                        .foregroundColor(AppColors.secondaryText)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(AppColors.tileBackground)
+        }
+        .buttonStyle(.plain)
     }
 }
 

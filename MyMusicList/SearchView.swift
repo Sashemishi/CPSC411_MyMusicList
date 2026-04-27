@@ -24,12 +24,26 @@ struct SearchView: View {
     var body: some View {
         List(musicList) { music in
             VStack(alignment: .leading, spacing: 8) {
-                Text(music.title)
-                    .font(.headline)
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(music.title)
+                            .font(.headline)
 
-                Text(music.artist)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                        Text(music.artist)
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        viewModel.presentPlayback(for: music, queue: musicList)
+                    } label: {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 28))
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 HStack(spacing: 12) {
                     Menu("Add to Playlist") {

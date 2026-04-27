@@ -131,13 +131,28 @@ struct PlaylistDetailView: View {
                     if let songs = playlist?.songs, !songs.isEmpty {
                         ForEach(songs) { music in
                             VStack(alignment: .leading, spacing: 6) {
-                                Text(music.title)
-                                    .font(.system(size: 20))
-                                    .foregroundColor(AppColors.primaryText)
+                                HStack(alignment: .top, spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(music.title)
+                                            .font(.system(size: 20))
+                                            .foregroundColor(AppColors.primaryText)
 
-                                Text(music.artist)
-                                    .font(.subheadline)
-                                    .foregroundColor(AppColors.secondaryText)
+                                        Text(music.artist)
+                                            .font(.subheadline)
+                                            .foregroundColor(AppColors.secondaryText)
+                                    }
+
+                                    Spacer()
+
+                                    Button {
+                                        viewModel.presentPlayback(for: music, queue: songs)
+                                    } label: {
+                                        Image(systemName: "play.circle.fill")
+                                            .font(.system(size: 28))
+                                            .foregroundColor(AppColors.accent)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
 
                                 Button(expandedSongID == music.id ? "Hide Lyrics" : "Tap to view Lyrics..") {
                                     if expandedSongID == music.id {
