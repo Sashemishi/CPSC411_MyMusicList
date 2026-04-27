@@ -1,8 +1,9 @@
 import SwiftUI
 import Combine
 import AVFoundation
+import UIKit
 
-private final class PlaybackController: NSObject, ObservableObject, AVAudioPlayerDelegate {
+final class PlaybackController: NSObject, ObservableObject, AVAudioPlayerDelegate {
     static let shared = PlaybackController()
 
     @Published private(set) var isPlaying = false
@@ -12,6 +13,10 @@ private final class PlaybackController: NSObject, ObservableObject, AVAudioPlaye
 
     private var audioPlayer: AVAudioPlayer?
     private var currentSongID: UUID?
+
+    func isPrepared(for song: MusicItem) -> Bool {
+        currentSongID == song.id && audioPlayer != nil
+    }
 
     func prepare(song: MusicItem) {
         guard currentSongID != song.id || audioPlayer == nil else {
@@ -52,6 +57,14 @@ private final class PlaybackController: NSObject, ObservableObject, AVAudioPlaye
     func pause() {
         audioPlayer?.pause()
         syncState()
+    }
+
+    func togglePlayback() {
+        if isPlaying {
+            pause()
+        } else {
+            play()
+        }
     }
 
     func stop() {
@@ -105,6 +118,24 @@ private final class PlaybackController: NSObject, ObservableObject, AVAudioPlaye
             $0.deletingPathExtension().lastPathComponent == song.title
         }
     }
+
+    func embeddedArtwork(for song: MusicItem) async -> UIImage? {
+        guard let url = audioURL(for: song) else { return nil }
+
+        let asset = AVURLAsset(url: url)
+        guard let metadata = try? await asset.load(.commonMetadata) else {
+            return nil
+        }
+        let artworkItem = metadata.first {
+            $0.commonKey?.rawValue == AVMetadataKey.commonKeyArtwork.rawValue
+        }
+
+        guard let artworkItem,
+              let data = try? await artworkItem.load(.dataValue) else {
+            return nil
+        }
+        return UIImage(data: data)
+    }
 }
 
 struct PlaybackView: View {
@@ -117,6 +148,8 @@ struct PlaybackView: View {
     @State private var isRepeatEnabled = false
     @State private var isDraggingSlider = false
     @State private var pendingSeekTime: Double = 0
+    @State private var showAddToPlaylistSheet = false
+    @State private var embeddedArtwork: UIImage?
     @StateObject private var playbackController = PlaybackController.shared
 
     private let playbackTimer = Timer.publish(every: 0.25, on: .main, in: .common).autoconnect()
@@ -180,6 +213,7 @@ struct PlaybackView: View {
         .onChange(of: viewModel.currentSong?.id) { _, _ in
             syncIndexToCurrentSong()
             prepareActiveSong(autoplay: isPlaying)
+            loadArtwork()
         }
         .onChange(of: viewModel.currentQueue.map(\.id)) { _, _ in
             syncCurrentSong()
@@ -194,8 +228,15 @@ struct PlaybackView: View {
         .onReceive(playbackTimer) { _ in
             playbackController.refreshProgress()
         }
-        .onDisappear {
-            playbackController.pause()
+        .sheet(isPresented: $showAddToPlaylistSheet) {
+            PlaybackAddToPlaylistSheet(
+                playlists: viewModel.playlists,
+                onSelect: { playlist in
+                    if let activeSong {
+                        add(activeSong, to: playlist)
+                    }
+                }
+            )
         }
     }
 
@@ -213,12 +254,27 @@ struct PlaybackView: View {
 
             Spacer()
 
-            Button {
+            Menu {
                 if let activeSong {
-                    viewModel.addSong(activeSong)
+                    if viewModel.playlists.isEmpty {
+                        Button("No playlists yet") {}
+                            .disabled(true)
+                    } else {
+                        ForEach(viewModel.playlists) { playlist in
+                            Button(playlist.name) {
+                                add(activeSong, to: playlist)
+                            }
+                        }
+                    }
+
+                    Divider()
+
+                    Button("Choose…") {
+                        showAddToPlaylistSheet = true
+                    }
                 }
             } label: {
-                Image(systemName: isSongSaved ? "checkmark" : "plus")
+                Image(systemName: "plus")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(.white)
             }
@@ -228,7 +284,11 @@ struct PlaybackView: View {
 
     private var artworkView: some View {
         Group {
-            if let coverURL = activeSong?.coverURL,
+            if let embeddedArtwork {
+                Image(uiImage: embeddedArtwork)
+                    .resizable()
+                    .scaledToFill()
+            } else if let coverURL = activeSong?.coverURL,
                let url = URL(string: coverURL) {
                 AsyncImage(url: url) { image in
                     image
@@ -242,15 +302,15 @@ struct PlaybackView: View {
             }
         }
         .frame(width: 260, height: 260)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .clipped()
         .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            Rectangle()
                 .stroke(.white.opacity(0.08), lineWidth: 1)
         }
     }
 
     private var artworkPlaceholder: some View {
-        RoundedRectangle(cornerRadius: 28, style: .continuous)
+        Rectangle()
             .fill(AppColors.accent.opacity(0.55))
             .overlay {
                 Image(systemName: "music.note")
@@ -300,12 +360,14 @@ struct PlaybackView: View {
                 value: sliderValue,
                 in: 0...playbackDuration,
                 onEditingChanged: { isEditing in
-                    isDraggingSlider = isEditing
-
                     if isEditing {
+                        isDraggingSlider = true
                         pendingSeekTime = playbackController.currentTime
                     } else {
-                        playbackController.seek(to: pendingSeekTime)
+                        let clampedTime = min(max(pendingSeekTime, 0), playbackDuration)
+                        playbackController.seek(to: clampedTime)
+                        pendingSeekTime = playbackController.currentTime
+                        isDraggingSlider = false
                     }
                 }
             )
@@ -415,11 +477,17 @@ struct PlaybackView: View {
         if activeSong == nil {
             isPlaying = false
             pendingSeekTime = 0
+            embeddedArtwork = nil
             playbackController.stop()
             return
         }
 
+        guard let activeSong else { return }
+
+        let shouldAutoplay = !playbackController.isPrepared(for: activeSong)
+        isPlaying = playbackController.isPlaying || shouldAutoplay
         prepareActiveSong(autoplay: isPlaying)
+        loadArtwork()
     }
 
     private func syncIndexToCurrentSong() {
@@ -446,12 +514,15 @@ struct PlaybackView: View {
     private func handleTrackCompletion() {
         if isRepeatEnabled {
             playbackController.seek(to: 0)
+            pendingSeekTime = 0
+            isDraggingSlider = false
             playbackController.play()
         } else if hasNextSong {
             selectSong(at: currentIndex + 1)
         } else {
             isPlaying = false
             playbackController.seek(to: playbackController.duration)
+            pendingSeekTime = playbackController.currentTime
         }
     }
 
@@ -460,6 +531,7 @@ struct PlaybackView: View {
 
         if playbackController.currentTime > 3 {
             playbackController.seek(to: 0)
+            pendingSeekTime = playbackController.currentTime
             return
         }
 
@@ -467,6 +539,7 @@ struct PlaybackView: View {
             selectSong(at: currentIndex - 1)
         } else {
             playbackController.seek(to: 0)
+            pendingSeekTime = playbackController.currentTime
         }
     }
 
@@ -476,14 +549,18 @@ struct PlaybackView: View {
     }
 
     private func shuffleToRandomSong() {
-        guard playlist.count > 1 else { return }
+        guard playlist.count > 1,
+              playlist.indices.contains(currentIndex) else { return }
 
-        var nextIndex = Int.random(in: 0..<playlist.count)
-        while nextIndex == currentIndex {
-            nextIndex = Int.random(in: 0..<playlist.count)
+        let currentSong = playlist[currentIndex]
+        var remainingSongs = playlist.enumerated().compactMap { index, song in
+            index == currentIndex ? nil : song
         }
+        remainingSongs.shuffle()
 
-        selectSong(at: nextIndex)
+        var shuffledPlaylist = remainingSongs
+        shuffledPlaylist.insert(currentSong, at: currentIndex)
+        viewModel.currentQueue = shuffledPlaylist
     }
 
     private func selectSong(at index: Int) {
@@ -498,11 +575,34 @@ struct PlaybackView: View {
 
         playbackController.prepare(song: activeSong)
         pendingSeekTime = playbackController.currentTime
+        isDraggingSlider = false
+        isPlaying = autoplay
 
         if autoplay {
             playbackController.play()
         } else {
             playbackController.pause()
+        }
+    }
+
+    private func add(_ song: MusicItem, to playlist: Playlist) {
+        viewModel.addSong(song, toPlaylistID: playlist.id)
+        viewModel.addSong(song)
+    }
+
+    private func loadArtwork() {
+        guard let activeSong else {
+            embeddedArtwork = nil
+            return
+        }
+
+        Task {
+            let artwork = await playbackController.embeddedArtwork(for: activeSong)
+            await MainActor.run {
+                if self.activeSong?.id == activeSong.id {
+                    embeddedArtwork = artwork
+                }
+            }
         }
     }
 
@@ -515,6 +615,39 @@ struct PlaybackView: View {
         let minutes = totalSeconds / 60
         let seconds = totalSeconds % 60
         return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+private struct PlaybackAddToPlaylistSheet: View {
+    var playlists: [Playlist]
+    var onSelect: (Playlist) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(playlists) { playlist in
+                Button {
+                    onSelect(playlist)
+                    dismiss()
+                } label: {
+                    HStack {
+                        Text(playlist.name)
+                        Spacer()
+                        Text("\(playlist.songs.count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Add to Playlist")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 

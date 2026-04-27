@@ -22,50 +22,60 @@ struct SearchView: View {
     @State private var selectedSong: MusicItem?
 
     var body: some View {
-        List(musicList) { music in
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(music.title)
-                            .font(.headline)
+        ZStack {
+            AppColors.background
+                .ignoresSafeArea()
 
-                        Text(music.artist)
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+            List(musicList) { music in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(music.title)
+                                .font(.headline)
+                                .foregroundColor(AppColors.primaryText)
+
+                            Text(music.artist)
+                                .font(.subheadline)
+                                .foregroundColor(AppColors.secondaryText)
+                        }
+
+                        Spacer()
+
+                        Button {
+                            viewModel.presentPlayback(for: music, queue: musicList)
+                        } label: {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(AppColors.accent)
+                        }
+                        .buttonStyle(.plain)
                     }
 
-                    Spacer()
-
-                    Button {
-                        viewModel.presentPlayback(for: music, queue: musicList)
-                    } label: {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 28))
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                HStack(spacing: 12) {
-                    Menu("Add to Playlist") {
-                        if viewModel.playlists.isEmpty {
-                            Button("No playlists yet") {}
-                                .disabled(true)
-                        } else {
-                            ForEach(viewModel.playlists) { playlist in
-                                Button(playlist.name) {
-                                    add(music, to: playlist)
+                    HStack(spacing: 12) {
+                        Menu("Add to Playlist") {
+                            if viewModel.playlists.isEmpty {
+                                Button("No playlists yet") {}
+                                    .disabled(true)
+                            } else {
+                                ForEach(viewModel.playlists) { playlist in
+                                    Button(playlist.name) {
+                                        add(music, to: playlist)
+                                    }
                                 }
                             }
+                            Divider()
+                            Button("Choose…") {
+                                selectedSong = music
+                                showAddToPlaylistSheet = true
+                            }
                         }
-                        Divider()
-                        Button("Choose…") {
-                            selectedSong = music
-                            showAddToPlaylistSheet = true
-                        }
+                        .tint(AppColors.accent)
+                        .buttonStyle(.borderless)
                     }
-                    .buttonStyle(.borderless)
                 }
+                .listRowBackground(AppColors.tileBackground)
             }
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Search")
         .onAppear {
